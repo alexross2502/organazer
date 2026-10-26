@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import express from 'express'
 import { connectDb, getDb, closeDb } from './db.js'
 import { authRouter } from './auth.js'
@@ -5,6 +7,7 @@ import { pushRouter } from './push.js'
 
 const app = express()
 const port = Number(process.env.PORT) || 3000
+const distDir = fileURLToPath(new URL('../dist', import.meta.url))
 
 app.use(express.json())
 app.use('/api/auth', authRouter)
@@ -18,6 +21,17 @@ app.get('/api/health', async (req, res) => {
     res.status(503).json({ status: 'error', db: error.message })
   }
 })
+
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found' })
+})
+
+if (existsSync(distDir)) {
+  app.use(express.static(distDir))
+  app.get('/{*path}', (req, res) => {
+    res.sendFile('index.html', { root: distDir })
+  })
+}
 
 async function start() {
   await connectDb()
